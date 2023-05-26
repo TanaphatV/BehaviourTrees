@@ -19,7 +19,7 @@ public class Sequence : Node
             {
                 case NodeState.RUNNING:
                     isAnyNodeRunning = true;
-                    break;
+                    return NodeState.RUNNING;
                 case NodeState.SUCCESS:
                     break;
                 case NodeState.FAILURE:

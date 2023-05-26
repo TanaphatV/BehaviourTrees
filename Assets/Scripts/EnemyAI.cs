@@ -17,6 +17,9 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private Transform playerTransform;
     [SerializeField] private Cover[] avaliableCovers;
 
+    public Vector3 playerLastPos = Vector3.zero;
+    public float playerLastSeenTime = Mathf.Infinity;
+    public Vector3 randomPatrolPos = Vector3.zero;
    
 
     private Material material;
@@ -24,6 +27,8 @@ public class EnemyAI : MonoBehaviour
     private NavMeshAgent agent;
 
     private Node topNode;
+
+    //public GameObject marker;
 
     private float _currentHealth;
 	public float currentHealth
@@ -54,6 +59,7 @@ public class EnemyAI : MonoBehaviour
         RangeNode chasingRangeNode = new RangeNode(chasingRange, playerTransform, transform);
         RangeNode shootingRangeNode = new RangeNode(shootingRange, playerTransform, transform);
         ShootNode shootNode = new ShootNode(agent, this, playerTransform);
+        PlayerVisibleNode visibleNode = new PlayerVisibleNode(this,playerTransform, transform, chasingRange);
 
         Sequence chaseSequence = new Sequence(new List<Node> { chasingRangeNode, chaseNode });
         Sequence shootSequence = new Sequence(new List<Node> { shootingRangeNode, shootNode });
@@ -63,7 +69,19 @@ public class EnemyAI : MonoBehaviour
         Selector tryToTakeCoverSelector = new Selector(new List<Node> { isCoveredNode, findCoverSelector });
         Sequence mainCoverSequence = new Sequence(new List<Node> { healthNode, tryToTakeCoverSelector });
 
-        topNode = new Selector(new List<Node> { mainCoverSequence, shootSequence, chaseSequence });
+        Selector shootSelector = new Selector(new List<Node> { shootSequence, chaseSequence });
+        Sequence PlayerVisible = new Sequence(new List<Node> { visibleNode, shootSelector});
+
+        RandomPatrolNode randomNode = new RandomPatrolNode(agent, this,2.0f);
+        LookAroundNode lookAroundNode = new LookAroundNode(5.0f, transform,this);
+
+        GoToLastSeenNode goToLastSeenNode = new GoToLastSeenNode(this,agent);
+        RecentlySeenNode recentNode = new RecentlySeenNode(this,10.0f);
+        Sequence RecentlySeenSequence = new Sequence(new List<Node> { recentNode,goToLastSeenNode,lookAroundNode/* goto location patrol*/});
+        Sequence NotSeenSequence = new Sequence(new List<Node> {/* new Inverter(recentNode),*/ randomNode,lookAroundNode});
+        //Selector PlayerNotVisible = new Selector(new List<Node> { });
+
+        topNode = new Selector(new List<Node> { mainCoverSequence, PlayerVisible, RecentlySeenSequence,NotSeenSequence });
 
 
     }
@@ -77,6 +95,8 @@ public class EnemyAI : MonoBehaviour
             agent.isStopped = true;
         }
         currentHealth += Time.deltaTime * healthRestoreRate;
+        //marker.transform.position = randomPatrolPos;
+
     }
 
 
@@ -94,6 +114,7 @@ public class EnemyAI : MonoBehaviour
     {
         this.bestCoverSpot = bestCoverSpot;
     }
+
 
     public Transform GetBestCoverSpot()
     {
